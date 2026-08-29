@@ -271,6 +271,15 @@ async def _ingest_event_internal(event_dict: dict, db: AsyncSession):
         logger.error(f"Failed to ingest simulated event: {e}")
 
 
+async def _simulation_process_event(event: dict):
+    """Global callback for simulation events."""
+    from app.core.database import AsyncSessionLocal
+    from app.api.routes.events import _process_event
+    async with AsyncSessionLocal() as session:
+        await _process_event(event, session)
+        await session.commit()
+
+
 @simulation_router.post("/start")
 async def start_simulation(
     control: SimulationControl,
@@ -279,16 +288,7 @@ async def start_simulation(
     current_user=Depends(require_role("admin", "analyst")),
 ):
     """Start the simulation engine."""
-    from app.core.database import AsyncSessionLocal
-    
-    async def process_event(event: dict):
-        """Callback: process each generated event."""
-        from app.api.routes.events import _process_event
-        async with AsyncSessionLocal() as session:
-            await _process_event(event, session)
-            await session.commit()
-    
-    simulation_engine.register_callback(process_event)
+    simulation_engine.register_callback(_simulation_process_event)
     
     if control.action == "start":
         scenario = control.scenario or "normal"

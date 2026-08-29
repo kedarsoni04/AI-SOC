@@ -444,7 +444,8 @@ class SimulationEngine:
     
     def register_callback(self, callback: Callable):
         """Register a callback to receive generated events."""
-        self._event_callbacks.append(callback)
+        if callback not in self._event_callbacks:
+            self._event_callbacks.append(callback)
     
     async def start(self, scenario: str = "normal"):
         """Start the simulation engine."""
@@ -491,8 +492,8 @@ class SimulationEngine:
                 gen = SCENARIOS.get(scenario, scenario_normal_traffic)
                 
                 if scenario == "normal":
-                    # Generate 1-3 normal events
-                    events = gen(n=random.randint(1, 3))
+                    # Generate 1-3 normal events — call directly to satisfy type checker
+                    events = scenario_normal_traffic(n=random.randint(1, 3))
                 else:
                     events = gen()
                     # After attack scenario, switch back to normal

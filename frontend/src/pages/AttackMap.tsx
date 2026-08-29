@@ -2,7 +2,7 @@
  * Attack Map Page — SVG world map with attack source visualization
  */
 import { useState, useEffect } from 'react';
-import { Globe } from 'lucide-react';
+
 import { PageHeader } from '../components/layout/PageHeader';
 import { get } from '../services/api';
 import type { GeoAttack } from '../types';
@@ -27,15 +27,15 @@ const COUNTRY_COLORS: Record<string, string> = {
 export function AttackMapPage() {
   const [attacks, setAttacks] = useState<GeoAttack[]>([]);
   const [selected, setSelected] = useState<GeoAttack | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+
 
   useEffect(() => {
     const load = async () => {
       try {
         const data = await get<GeoAttack[]>('/dashboard/geo-attacks');
         setAttacks(data);
-      } finally {
-        setIsLoading(false);
+      } catch (err) {
+        console.error(err);
       }
     };
     load();

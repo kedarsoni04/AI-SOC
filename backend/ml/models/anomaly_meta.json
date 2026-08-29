@@ -1,1 +1,1 @@
-{"training_samples": 2000, "contamination": 0.05, "feature_names": ["hour_of_day", "day_of_week", "is_night", "failed_login_score", "bytes_transferred_mb", "destination_port_norm", "status_code_norm", "is_external_ip", "event_type_encoded"], "trained_at": "2026-08-29T11:48:06.996000"}
+{"training_samples": 3000, "contamination": 0.05, "feature_names": ["hour_of_day", "day_of_week", "is_night", "failed_login_score", "bytes_transferred_mb", "destination_port_norm", "status_code_norm", "is_external_ip", "event_type_encoded"], "trained_at": "2026-08-29T21:32:17.362346"}

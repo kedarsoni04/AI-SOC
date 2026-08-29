@@ -3,7 +3,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Siren, TrendingUp, Eye } from 'lucide-react';
+import { Siren, Eye } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { SeverityBadge, StatusBadge, RiskScoreBadge } from '../components/ui/Badge';
 import { get } from '../services/api';
@@ -17,7 +17,7 @@ export function IncidentsPage() {
   const navigate = useNavigate();
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
+
   const [status, setStatus] = useState('');
   const [severity, setSeverity] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -25,16 +25,18 @@ export function IncidentsPage() {
   const load = useCallback(async () => {
     setIsLoading(true);
     try {
-      const params: Record<string, unknown> = { page, page_size: 20 };
+      const params: Record<string, unknown> = { page: 1, page_size: 20 };
       if (status) params.status = status;
       if (severity) params.severity = severity;
       const data = await get<PaginatedResponse<Incident>>('/incidents', params);
       setIncidents(data.items);
       setTotal(data.total);
+    } catch (err) {
+      console.error(err);
     } finally {
       setIsLoading(false);
     }
-  }, [page, status, severity]);
+  }, [status, severity]);
 
   useEffect(() => { load(); }, [load]);
 

@@ -206,7 +206,6 @@ class ThreatClassifier:
                 learning_rate=0.1,
                 random_state=42,
                 eval_metric="mlogloss",
-                use_label_encoder=False,
             )
         else:
             self.model = RandomForestClassifier(

@@ -1,7 +1,8 @@
 /**
  * Axios API client with automatic JWT token injection and error handling.
  */
-import axios, { AxiosError, AxiosInstance, AxiosResponse } from 'axios';
+import axios, { AxiosError } from 'axios';
+import type { AxiosInstance, AxiosResponse } from 'axios';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 const API_PREFIX = '/api/v1';

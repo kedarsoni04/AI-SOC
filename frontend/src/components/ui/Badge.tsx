@@ -1,10 +1,8 @@
 /**
  * Severity and status badge components
  */
-import type { Severity, AlertStatus, IncidentStatus } from '../../types';
+import type { Severity } from '../../types';
 import clsx from 'clsx';
-
-type BadgeVariant = Severity | AlertStatus | IncidentStatus | string;
 
 const SEVERITY_CLASSES: Record<string, string> = {
   critical: 'badge-critical',

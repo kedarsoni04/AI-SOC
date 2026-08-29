@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Brain, Shield, Clock, AlertTriangle, Target,
+  ArrowLeft, Brain, Shield, AlertTriangle, Target,
   CheckCircle, XCircle, ChevronDown, ChevronRight, Bot,
   RefreshCw, Loader2
 } from 'lucide-react';
@@ -427,16 +427,16 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 
 function ResponseTab({ incidentId }: { incidentId: string }) {
   const [actions, setActions] = useState<ResponseAction[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+
   const [newAction, setNewAction] = useState({ action_type: 'block_ip', target: '', description: '' });
 
   const load = async () => {
-    setIsLoading(true);
+
     try {
       const data = await get<{ items: ResponseAction[] }>('/response', { incident_id: incidentId });
       setActions(data.items);
-    } finally {
-      setIsLoading(false);
+    } catch (err) {
+      console.error(err);
     }
   };
 

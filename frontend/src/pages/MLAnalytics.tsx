@@ -160,10 +160,7 @@ export function MLAnalyticsPage() {
                   <BarChart data={metricsData}>
                     <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#94a3b8' }} />
                     <YAxis tick={{ fontSize: 11, fill: '#64748b' }} domain={[0, 100]} tickFormatter={v => `${v}%`} />
-                    <Tooltip
-                      contentStyle={{ background: '#1a2235', border: '1px solid #1e2d40', borderRadius: '8px' }}
-                      formatter={(value: number) => [`${value.toFixed(1)}%`, '']}
-                    />
+                    <Tooltip contentStyle={{ background: '#1a2235', border: '1px solid #1e2d40', borderRadius: '8px' }} formatter={(value: any) => [value.toFixed(2), 'Metric']} />
                     <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                       {metricsData.map((_, i) => (
                         <Cell key={i} fill={COLORS[i % COLORS.length]} />

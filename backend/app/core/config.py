@@ -36,7 +36,10 @@ class Settings(BaseSettings):
     gemini_api_key: Optional[str] = None
     openai_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
-    llm_model: str = "gemini-1.5-flash"
+    llm_model: str = "gemini-flash-latest"
+    gemini_model: str = "gemini-flash-latest"
+    openai_model: str = "gpt-4o"
+    anthropic_model: str = "claude-3-5-sonnet-20241022"
 
     # ── ML ─────────────────────────────────────────────────
     ml_model_path: str = "./ml/models"

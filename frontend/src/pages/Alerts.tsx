@@ -3,7 +3,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Filter, Search, CheckCheck, ExternalLink } from 'lucide-react';
+import { Search, CheckCheck, ExternalLink } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { SeverityBadge, StatusBadge } from '../components/ui/Badge';
 import { get, patch, post } from '../services/api';
@@ -17,17 +17,15 @@ export function AlertsPage() {
   const navigate = useNavigate();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
   const [severity, setSeverity] = useState('');
   const [status, setStatus] = useState('new');
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [selected, setSelected] = useState<string[]>([]);
 
   const loadAlerts = useCallback(async () => {
     setIsLoading(true);
     try {
-      const params: Record<string, unknown> = { page, page_size: 50 };
+      const params: Record<string, unknown> = { page: 1, page_size: 50 };
       if (severity) params.severity = severity;
       if (status) params.status = status;
       
@@ -39,7 +37,7 @@ export function AlertsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, severity, status]);
+  }, [severity, status]);
 
   useEffect(() => { loadAlerts(); }, [loadAlerts]);
 

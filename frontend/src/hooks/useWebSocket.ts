@@ -19,7 +19,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   const [reconnectCount, setReconnectCount] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
   const retryRef = useRef(0);
-  const pingInterval = useRef<NodeJS.Timeout>();
+  const pingInterval = useRef<number | undefined>(undefined);
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;

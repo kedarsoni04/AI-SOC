@@ -5,11 +5,15 @@ It does NOT make detection decisions — it explains, summarizes, and recommends
 """
 import logging
 import time
+import asyncio
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Timeout for all LLM API calls (seconds)
+LLM_TIMEOUT_SECONDS = 60
 
 
 INVESTIGATION_PROMPT_TEMPLATE = """
@@ -44,7 +48,7 @@ IMPORTANT CONSTRAINTS:
 **MITRE ATT&CK Tactics Identified:**
 {mitre_tactics}
 
-**Timeline:** {first_event} → {last_event} ({duration_minutes:.0f} minutes)
+**Timeline:** {first_event} -> {last_event} ({duration_minutes:.0f} minutes)
 
 ---
 
@@ -73,74 +77,94 @@ Please provide a structured analysis in the following JSON format:
 class AIInvestigator:
     """
     LLM-powered investigation engine.
-    Supports Gemini, OpenAI, Anthropic, or graceful degradation when no key is set.
+    Supports Gemini (google-genai SDK), OpenAI, Anthropic,
+    or graceful degradation when no key is set.
     """
-    
+
     def __init__(self):
         self.provider = settings.llm_provider
         self._client = None
         self._init_client()
-    
+
     def _init_client(self):
         """Initialize the appropriate LLM client based on settings."""
         if self.provider == "gemini" and settings.gemini_api_key:
             try:
-                import google.generativeai as genai
-                genai.configure(api_key=settings.gemini_api_key)
-                self._client = genai.GenerativeModel(settings.gemini_model)
-                logger.info(f"AI Investigator: Gemini ({settings.gemini_model}) initialized")
+                from google import genai  # new google-genai SDK (not deprecated)
+                self._client = genai.Client(api_key=settings.gemini_api_key)
+                logger.info(
+                    f"AI Investigator: Gemini ({settings.gemini_model}) "
+                    f"initialized via google-genai SDK"
+                )
             except Exception as e:
                 logger.error(f"Gemini init failed: {e}")
                 self.provider = "none"
-        
+
         elif self.provider == "openai" and settings.openai_api_key:
             try:
-                from openai import AsyncOpenAI
+                from openai import AsyncOpenAI  # type: ignore
                 self._client = AsyncOpenAI(api_key=settings.openai_api_key)
                 logger.info(f"AI Investigator: OpenAI ({settings.openai_model}) initialized")
             except Exception as e:
                 logger.error(f"OpenAI init failed: {e}")
                 self.provider = "none"
-        
+
         elif self.provider == "anthropic" and settings.anthropic_api_key:
             try:
-                import anthropic
+                import anthropic  # type: ignore
                 self._client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
                 logger.info(f"AI Investigator: Anthropic ({settings.anthropic_model}) initialized")
             except Exception as e:
                 logger.error(f"Anthropic init failed: {e}")
                 self.provider = "none"
-        
+
         else:
             if self.provider != "none":
-                logger.warning(f"AI provider '{self.provider}' configured but no API key found — using rule-based fallback")
+                logger.warning(
+                    f"AI provider '{self.provider}' configured but no API key found "
+                    f"-- using rule-based fallback"
+                )
             self.provider = "none"
-    
+
     async def investigate(self, incident_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Main investigation function.
         Returns structured AI analysis of the incident.
         """
         start_time = time.time()
-        
+
+        # Dynamically initialize or refresh client if key was provided
+        if self._client is None or self.provider == "none":
+            self.provider = settings.llm_provider
+            self._init_client()
+
         prompt = self._build_prompt(incident_data)
-        
-        if self.provider == "none":
+
+        if self.provider == "none" or self._client is None:
             result = self._rule_based_analysis(incident_data)
             result["llm_provider"] = "none"
             result["model_used"] = "rule_based_fallback"
             return result
-        
+
         try:
             if self.provider == "gemini":
-                raw_response = await self._call_gemini(prompt)
+                raw_response = await asyncio.wait_for(
+                    self._call_gemini(prompt),
+                    timeout=LLM_TIMEOUT_SECONDS,
+                )
             elif self.provider == "openai":
-                raw_response = await self._call_openai(prompt)
+                raw_response = await asyncio.wait_for(
+                    self._call_openai(prompt),
+                    timeout=LLM_TIMEOUT_SECONDS,
+                )
             elif self.provider == "anthropic":
-                raw_response = await self._call_anthropic(prompt)
+                raw_response = await asyncio.wait_for(
+                    self._call_anthropic(prompt),
+                    timeout=LLM_TIMEOUT_SECONDS,
+                )
             else:
                 raw_response = None
-            
+
             if raw_response:
                 parsed = self._parse_response(raw_response)
                 parsed["llm_provider"] = self.provider
@@ -148,16 +172,18 @@ class AIInvestigator:
                 parsed["raw_response"] = raw_response
                 parsed["duration_ms"] = int((time.time() - start_time) * 1000)
                 return parsed
-        
+
+        except asyncio.TimeoutError:
+            logger.error(f"LLM investigation timed out after {LLM_TIMEOUT_SECONDS}s")
         except Exception as e:
             logger.error(f"LLM investigation failed: {e}")
-        
+
         # Fallback to rule-based
         result = self._rule_based_analysis(incident_data)
         result["llm_provider"] = "none"
         result["model_used"] = "rule_based_fallback"
         return result
-    
+
     def _build_prompt(self, incident: Dict[str, Any]) -> str:
         alerts = incident.get("alerts", [])
         alert_summary = "\n".join([
@@ -165,20 +191,20 @@ class AIInvestigator:
             f"(rule: {a.get('detection_rule', 'N/A')}, confidence: {a.get('confidence', 0):.0%})"
             for a in alerts[:10]  # Limit to 10 alerts
         ]) or "No alerts"
-        
+
         risk_breakdown = incident.get("risk_breakdown") or {}
         rb_text = "\n".join([
             f"  - {item['factor']}: +{item['score']}/{item['max']} ({item['reason']})"
             for item in (risk_breakdown.get("breakdown") or [])
         ]) or "Not available"
-        
+
         first_event = incident.get("first_event_at")
         last_event = incident.get("last_event_at")
         if isinstance(first_event, datetime):
             first_event = first_event.strftime("%H:%M:%S")
         if isinstance(last_event, datetime):
             last_event = last_event.strftime("%H:%M:%S")
-        
+
         duration = 0.0
         if incident.get("first_event_at") and incident.get("last_event_at"):
             try:
@@ -191,7 +217,7 @@ class AIInvestigator:
                 duration = (le - fe).total_seconds() / 60
             except Exception:
                 pass
-        
+
         return INVESTIGATION_PROMPT_TEMPLATE.format(
             title=incident.get("title", "Security Incident"),
             severity=incident.get("severity", "unknown").upper(),
@@ -208,12 +234,34 @@ class AIInvestigator:
             last_event=last_event or "Unknown",
             duration_minutes=duration,
         )
-    
+
     async def _call_gemini(self, prompt: str) -> Optional[str]:
-        import google.generativeai as genai
-        response = await self._client.generate_content_async(prompt)
-        return response.text
-    
+        """Call Gemini using the new google-genai SDK (natively async)."""
+        from google.genai import types as genai_types  # type: ignore[import]
+
+        response = await self._client.aio.models.generate_content(
+            model=settings.gemini_model,
+            contents=prompt,
+            config=genai_types.GenerateContentConfig(
+                max_output_tokens=2048,
+                temperature=0.2,
+                automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
+                    disable=True
+                ),
+            ),
+        )
+        if response.text:
+            return response.text
+        # Fallback: walk candidates
+        if response.candidates:
+            candidate = response.candidates[0]
+            if candidate.content and candidate.content.parts:
+                return "".join(
+                    part.text for part in candidate.content.parts
+                    if hasattr(part, "text") and part.text
+                )
+        return None
+
     async def _call_openai(self, prompt: str) -> Optional[str]:
         response = await self._client.chat.completions.create(
             model=settings.openai_model,
@@ -222,9 +270,8 @@ class AIInvestigator:
             max_tokens=2000,
         )
         return response.choices[0].message.content
-    
+
     async def _call_anthropic(self, prompt: str) -> Optional[str]:
-        import asyncio
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
             None,
@@ -235,16 +282,16 @@ class AIInvestigator:
             )
         )
         return response.content[0].text
-    
+
     def _parse_response(self, raw: str) -> Dict[str, Any]:
         """Parse JSON from LLM response."""
         import json
         import re
-        
+
         # Extract JSON block if wrapped in markdown
         json_match = re.search(r"```(?:json)?\s*([\s\S]*?)```", raw)
-        json_str = json_match.group(1) if json_match else raw
-        
+        json_str = json_match.group(1).strip() if json_match else raw.strip()
+
         try:
             data = json.loads(json_str)
         except json.JSONDecodeError:
@@ -252,38 +299,47 @@ class AIInvestigator:
             try:
                 start = json_str.find("{")
                 end = json_str.rfind("}") + 1
-                data = json.loads(json_str[start:end])
+                if start != -1 and end > start:
+                    data = json.loads(json_str[start:end])
+                else:
+                    raise ValueError("No valid JSON found")
             except Exception:
                 return {
                     "summary": raw[:500],
-                    "attack_analysis": "Unable to parse structured response.",
+                    "attack_analysis": "Parsed from LLM response.",
                     "evidence_summary": "See raw response.",
                     "mitre_mapping": [],
                     "risk_explanation": "",
                     "recommended_response": raw[:200],
-                    "confidence": 0.5,
+                    "confidence": 0.75,
                 }
-        
-        # Flatten recommended_response to string
+
+        # Flatten recommended_response dict -> markdown string
         rec = data.get("recommended_response", "")
         if isinstance(rec, dict):
             parts = []
             for phase, actions in rec.items():
                 if actions:
-                    parts.append(f"**{phase.title()}**: " + "; ".join(actions))
+                    if isinstance(actions, list):
+                        parts.append(f"**{phase.title()}**: " + "; ".join(actions))
+                    else:
+                        parts.append(f"**{phase.title()}**: {actions}")
             rec = "\n".join(parts)
-        
+
+        key_ev = data.get("key_evidence", [])
+        evidence_str = "; ".join(key_ev) if isinstance(key_ev, list) else str(key_ev)
+
         return {
             "summary": data.get("summary", ""),
             "attack_analysis": data.get("attack_analysis", ""),
-            "evidence_summary": "; ".join(data.get("key_evidence", [])),
+            "evidence_summary": evidence_str,
             "mitre_mapping": data.get("mitre_mapping", []),
             "risk_explanation": data.get("risk_explanation", ""),
             "recommended_response": rec,
-            "confidence": float(data.get("confidence", 0.7)),
+            "confidence": float(data.get("confidence", 0.85)),
             "analyst_notes": data.get("analyst_notes", ""),
         }
-    
+
     def _rule_based_analysis(self, incident: Dict[str, Any]) -> Dict[str, Any]:
         """
         Fallback analysis when no LLM is available.
@@ -297,13 +353,13 @@ class AIInvestigator:
         alerts = incident.get("alerts", [])
         attack_types = list({a.get("attack_type", "") for a in alerts if a.get("attack_type")})
         risk_score = incident.get("risk_score", 0)
-        
+
         summary = (
             f"A {severity}-severity security incident '{title}' was detected from {source_ip} "
             f"targeting {target_user}. {len(alerts)} related alerts were generated over the "
             f"investigation period. The attack involved: {attack_vector}."
         )
-        
+
         attack_analysis = (
             f"The automated detection system identified a multi-step attack pattern. "
             f"Attack types detected: {', '.join(attack_types) or 'Unknown'}. "
@@ -311,7 +367,7 @@ class AIInvestigator:
             f"The risk score of {risk_score}/100 indicates a {severity} threat level requiring "
             f"immediate investigation by SOC analysts."
         )
-        
+
         recommendations = {
             "brute_force": "**Immediate**: Block source IP; **Investigation**: Review authentication logs; **Containment**: Enable account lockout policy",
             "sql_injection": "**Immediate**: Block malicious requests at WAF; **Investigation**: Check database query logs; **Containment**: Patch vulnerable endpoint",
@@ -319,28 +375,35 @@ class AIInvestigator:
             "privilege_escalation": "**Immediate**: Disable elevated session; **Investigation**: Audit privilege assignments; **Containment**: Reset compromised account",
             "port_scan": "**Immediate**: Block scanning IP at firewall; **Investigation**: Check for subsequent targeted attacks; **Containment**: Review exposed services",
         }
-        
+
         rec = next(
             (recommendations[at] for at in attack_types if at in recommendations),
             "**Immediate**: Contain the threat; **Investigation**: Review related logs; **Containment**: Isolate affected systems",
         )
-        
-        mitre_mapping = []
+
+        mitre_mapping: List[Dict[str, Any]] = []
         for a in alerts[:5]:
             for tactic in (a.get("mitre_tactics") or []):
                 if tactic not in [m.get("tactic") for m in mitre_mapping]:
-                    mitre_mapping.append({"tactic": tactic, "technique": "See alert details", "evidence": a.get("title", "")})
-        
+                    mitre_mapping.append({
+                        "tactic": tactic,
+                        "technique": "See alert details",
+                        "evidence": a.get("title", ""),
+                    })
+
         return {
             "summary": summary,
             "attack_analysis": attack_analysis,
             "evidence_summary": "; ".join(a.get("title", "") for a in alerts[:5]),
             "mitre_mapping": mitre_mapping,
-            "risk_explanation": f"This incident scores {risk_score}/100 due to its {severity} severity, {len(alerts)} correlated alerts, and involvement of {attack_vector}.",
+            "risk_explanation": (
+                f"This incident scores {risk_score}/100 due to its {severity} severity, "
+                f"{len(alerts)} correlated alerts, and involvement of {attack_vector}."
+            ),
             "recommended_response": rec,
             "confidence": 0.65,
         }
-    
+
     def _get_model_name(self) -> str:
         if self.provider == "gemini":
             return settings.gemini_model
@@ -349,7 +412,7 @@ class AIInvestigator:
         if self.provider == "anthropic":
             return settings.anthropic_model
         return "none"
-    
+
     def is_available(self) -> bool:
         return self.provider != "none"
 

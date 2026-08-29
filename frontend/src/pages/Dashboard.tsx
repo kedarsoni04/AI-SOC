@@ -5,27 +5,21 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Activity, AlertTriangle, Siren, Shield, CheckCircle,
-  TrendingUp, Zap, Play, Square, ChevronRight, RefreshCw,
+  Zap, Play, Square, RefreshCw,
   Eye, BarChart2
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, Tooltip, ResponsiveContainer, Legend
+  XAxis, YAxis, Tooltip, ResponsiveContainer
 } from 'recharts';
 import { PageHeader } from '../components/layout/PageHeader';
 import { SeverityBadge } from '../components/ui/Badge';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { get, post } from '../services/api';
-import type { DashboardSummary, EventVolumePoint, SecurityEvent, WSMessage, GeoAttack } from '../types';
+import type { DashboardSummary, EventVolumePoint, SecurityEvent, WSMessage } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 
-const SEVERITY_COLORS = {
-  critical: '#ef4444',
-  high: '#f97316',
-  medium: '#f59e0b',
-  low: '#3b82f6',
-  info: '#64748b',
-};
+
 
 const SCENARIOS = [
   { id: 'normal', label: 'Normal Traffic', color: 'btn-secondary' },
@@ -45,7 +39,7 @@ export function Dashboard() {
   const [topIPs, setTopIPs] = useState<{ ip: string; country: string; count: number }[]>([]);
   const [liveEvents, setLiveEvents] = useState<SecurityEvent[]>([]);
   const [isSimRunning, setIsSimRunning] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+
   const [lastRefresh, setLastRefresh] = useState(new Date());
 
   const loadDashboard = useCallback(async () => {
@@ -64,8 +58,6 @@ export function Dashboard() {
       setLastRefresh(new Date());
     } catch (err) {
       console.error('Dashboard load error:', err);
-    } finally {
-      setIsLoading(false);
     }
   }, []);
 

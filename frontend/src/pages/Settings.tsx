@@ -1,19 +1,12 @@
 /**
  * Settings Page
  */
-import { useState } from 'react';
-import { Settings, Key, Bell, Database, Shield } from 'lucide-react';
+
+import { Settings, Key, Database, Shield } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 
 export function SettingsPage() {
-  const [geminiKey, setGeminiKey] = useState('');
-  const [saved, setSaved] = useState(false);
 
-  const save = () => {
-    localStorage.setItem('GEMINI_API_KEY_HINT', geminiKey);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
 
   return (
     <div className="flex flex-col h-full">

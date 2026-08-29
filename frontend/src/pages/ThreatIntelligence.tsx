@@ -2,7 +2,7 @@
  * Threat Intelligence Page
  */
 import { useState, useEffect, useCallback } from 'react';
-import { Database, Search, Plus, X } from 'lucide-react';
+import { Search, Plus, X } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { SeverityBadge } from '../components/ui/Badge';
 import { get, post } from '../services/api';
@@ -14,7 +14,7 @@ export function ThreatIntelPage() {
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+
   const [showAdd, setShowAdd] = useState(false);
   const [searchResult, setSearchResult] = useState<{ found: boolean; indicators: ThreatIndicator[] } | null>(null);
   const [newIndicator, setNewIndicator] = useState({
@@ -22,14 +22,13 @@ export function ThreatIntelPage() {
   });
 
   const load = useCallback(async () => {
-    setIsLoading(true);
+
     const params: Record<string, unknown> = { page: 1, page_size: 50 };
     if (typeFilter) params.indicator_type = typeFilter;
     if (search) params.search = search;
     const data = await get<PaginatedResponse<ThreatIndicator>>('/threat-intelligence', params);
     setIndicators(data.items);
     setTotal(data.total);
-    setIsLoading(false);
   }, [typeFilter, search]);
 
   useEffect(() => { load(); }, [load]);

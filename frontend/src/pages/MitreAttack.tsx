@@ -6,11 +6,7 @@ import { Target } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { get } from '../services/api';
 
-interface MitreStat {
-  tactic: string;
-  technique: string;
-  count: number;
-}
+
 
 const MITRE_TACTICS = [
   { id: 'TA0001', name: 'Initial Access', color: '#ef4444' },
@@ -27,7 +23,7 @@ const MITRE_TACTICS = [
 
 export function MitreAttackPage() {
   const [detectedTactics, setDetectedTactics] = useState<Set<string>>(new Set());
-  const [isLoading, setIsLoading] = useState(true);
+
 
   useEffect(() => {
     const load = async () => {
@@ -42,8 +38,8 @@ export function MitreAttackPage() {
           });
         });
         setDetectedTactics(tactics);
-      } finally {
-        setIsLoading(false);
+      } catch (err) {
+        console.error(err);
       }
     };
     load();
