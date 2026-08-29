@@ -1,0 +1,29 @@
+# ── Required ────────────────────────────────────────────────
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+sqlalchemy[asyncio]>=2.0.30
+aiosqlite>=0.20.0       # SQLite async driver (dev)
+asyncpg>=0.29.0         # PostgreSQL async driver (prod)
+pydantic>=2.7.0
+pydantic-settings>=2.3.0
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.9
+python-dotenv>=1.0.1
+
+# ── ML ──────────────────────────────────────────────────────
+scikit-learn>=1.5.0
+numpy>=1.26.0
+joblib>=1.4.0
+# xgboost>=2.0.0         # optional — uncomment for XGBoost
+
+# ── AI / LLM ────────────────────────────────────────────────
+google-generativeai>=0.7.0
+# openai>=1.30.0         # optional
+# anthropic>=0.28.0      # optional
+
+# ── Utilities ────────────────────────────────────────────────
+httpx>=0.27.0
+slowapi>=0.1.9
+geopy>=2.4.0            # geo-IP distance calculation
+websockets>=12.0
