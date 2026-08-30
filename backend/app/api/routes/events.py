@@ -128,8 +128,8 @@ async def _process_event(
     
     # 2. ML Anomaly Detection
     is_anomaly, anomaly_score = anomaly_detector.predict(normalized)
-    normalized["is_anomaly"] = is_anomaly
-    normalized["anomaly_score"] = anomaly_score
+    normalized["is_anomaly"] = bool(is_anomaly)
+    normalized["anomaly_score"] = float(anomaly_score) if anomaly_score is not None else None
     
     # 3. Store event
     event = SecurityEvent(**normalized)
@@ -138,14 +138,19 @@ async def _process_event(
     
     # 4. ML Classification (store prediction)
     pred_label, pred_confidence = threat_classifier.predict(normalized)
-    if pred_label != "unknown":
+    # Convert numpy scalars to native Python types (JSON serialization safety)
+    pred_label_str = str(pred_label)
+    pred_confidence_float = float(pred_confidence)
+    is_anomaly_bool = bool(is_anomaly)
+    anomaly_score_float = float(anomaly_score) if anomaly_score is not None else None
+    if pred_label_str != "unknown":
         ml_pred = MLPrediction(
             event_id=event.id,
             model_name="ThreatClassifier",
-            prediction_label=pred_label,
-            confidence=pred_confidence,
-            anomaly_score=anomaly_score,
-            features={"is_anomaly": is_anomaly, "anomaly_score": anomaly_score},
+            prediction_label=pred_label_str,
+            confidence=pred_confidence_float,
+            anomaly_score=anomaly_score_float,
+            features={"is_anomaly": is_anomaly_bool, "anomaly_score": anomaly_score_float},
         )
         db.add(ml_pred)
     

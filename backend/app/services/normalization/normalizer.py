@@ -176,8 +176,8 @@ class LogNormalizer:
             "city": city,
             "latitude": lat,
             "longitude": lon,
-            "raw_log": json.dumps(raw_log),
-            "metadata_": metadata or None,
+            "raw_log": json.dumps(raw_log, default=str),
+            "event_metadata": metadata or None,
         }
 
     def _parse_timestamp(self, ts_value: Any) -> datetime:

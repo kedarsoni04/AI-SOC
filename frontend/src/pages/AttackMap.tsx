@@ -7,11 +7,9 @@ import { PageHeader } from '../components/layout/PageHeader';
 import { get } from '../services/api';
 import type { GeoAttack } from '../types';
 
-// Simple equirectangular projection
-const toSVG = (lat: number, lon: number, w = 1000, h = 500) => ({
-  x: (lon + 180) * (w / 360),
-  y: (90 - lat) * (h / 180),
-});
+import { geoMercator, geoPath } from 'd3-geo';
+
+const geoUrl = "https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson";
 
 const COUNTRY_COLORS: Record<string, string> = {
   'Russia': '#ef4444',
@@ -24,12 +22,27 @@ const COUNTRY_COLORS: Record<string, string> = {
   'Unknown': '#64748b',
 };
 
+// Map configuration
+const width = 1000;
+const height = 420;
+const projection = geoMercator().scale(120).translate([width / 2, height / 1.5]);
+const pathGenerator = geoPath().projection(projection);
+
 export function AttackMapPage() {
   const [attacks, setAttacks] = useState<GeoAttack[]>([]);
   const [selected, setSelected] = useState<GeoAttack | null>(null);
-
+  const [geographies, setGeographies] = useState<any[]>([]);
 
   useEffect(() => {
+    // Load world map GeoJSON
+    fetch(geoUrl)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.features) setGeographies(data.features);
+      })
+      .catch(console.error);
+
+    // Load attacks
     const load = async () => {
       try {
         const data = await get<GeoAttack[]>('/dashboard/geo-attacks');
@@ -52,55 +65,55 @@ export function AttackMapPage() {
         subtitle={`${attacks.length} attack sources detected`}
       />
       <div className="flex-1 overflow-auto p-6 space-y-4">
-        <div className="card relative overflow-hidden" style={{ height: 420 }}>
-          {/* Background */}
-          <div className="absolute inset-0 bg-soc-bg rounded-lg">
-            {/* Grid lines */}
-            <svg className="w-full h-full opacity-10" viewBox="0 0 1000 500">
-              {/* Longitude lines */}
-              {[-150,-120,-90,-60,-30,0,30,60,90,120,150].map(lon => {
-                const x = (lon + 180) * (1000 / 360);
-                return <line key={lon} x1={x} y1={0} x2={x} y2={500} stroke="#1e2d40" strokeWidth={0.5} />;
-              })}
-              {/* Latitude lines */}
-              {[-60,-30,0,30,60].map(lat => {
-                const y = (90 - lat) * (500 / 180);
-                return <line key={lat} x1={0} y1={y} x2={1000} y2={y} stroke="#1e2d40" strokeWidth={0.5} />;
-              })}
-            </svg>
+        <div className="card relative overflow-hidden bg-soc-bg rounded-lg" style={{ height: 420 }}>
+          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full">
+            {/* Base Map */}
+            <g>
+              {geographies.map((geo, i) => (
+                <path
+                  key={i}
+                  d={pathGenerator(geo) || ""}
+                  fill="#1e2d40"
+                  stroke="#0f172a"
+                  strokeWidth={0.5}
+                  className="hover:fill-[#293c56] transition-colors"
+                />
+              ))}
+            </g>
 
-            {/* Attack markers */}
-            <svg
-              className="absolute inset-0 w-full h-full"
-              viewBox="0 0 1000 500"
-              preserveAspectRatio="xMidYMid meet"
-            >
+            {/* Attack Markers */}
+            <g>
               {attacks.map((attack, i) => {
                 if (!attack.lat || !attack.lon) return null;
-                const { x, y } = toSVG(attack.lat, attack.lon);
+                const coords = projection([attack.lon, attack.lat]);
+                if (!coords) return null;
+                const [x, y] = coords;
+                
                 const radius = 4 + (attack.count / maxCount) * 12;
                 const color = COUNTRY_COLORS[attack.country] || '#ef4444';
                 return (
                   <g key={i} onClick={() => setSelected(attack)} className="cursor-pointer">
-                    {/* Pulse ring */}
                     <circle cx={x} cy={y} r={radius * 2} fill={color} fillOpacity={0.1}>
                       <animate attributeName="r" from={radius} to={radius * 2.5} dur="2s" repeatCount="indefinite" />
                       <animate attributeName="opacity" from={0.3} to={0} dur="2s" repeatCount="indefinite" />
                     </circle>
-                    {/* Core dot */}
                     <circle cx={x} cy={y} r={radius} fill={color} fillOpacity={0.8} stroke={color} strokeWidth={1} />
-                    <text x={x + radius + 2} y={y + 4} fontSize={8} fill="#94a3b8">{attack.ip}</text>
+                    <text x={x} y={y + radius + 8} textAnchor="middle" fontSize={8} fill="#94a3b8">{attack.ip}</text>
                   </g>
                 );
               })}
+            </g>
 
-              {/* Target city — center of network (assume datacenter in India) */}
-              <g>
-                <circle cx={toSVG(19.08, 72.88).x} cy={toSVG(19.08, 72.88).y} r={6} fill="#00d4ff" fillOpacity={0.9} />
-                <text x={toSVG(19.08, 72.88).x + 8} y={toSVG(19.08, 72.88).y + 4} fontSize={8} fill="#00d4ff">Target</text>
-              </g>
-            </svg>
-          </div>
+            {/* Target Datacenter Marker */}
+            <g>
+              {projection([72.88, 19.08]) && (
+                <>
+                  <circle cx={projection([72.88, 19.08])![0]} cy={projection([72.88, 19.08])![1]} r={6} fill="#00d4ff" fillOpacity={0.9} />
+                  <text x={projection([72.88, 19.08])![0]} y={projection([72.88, 19.08])![1] + 14} textAnchor="middle" fontSize={8} fill="#00d4ff">Target</text>
+                </>
+              )}
+            </g>
+          </svg>
 
           {/* Legend */}
           <div className="absolute top-4 right-4 bg-soc-surface/90 border border-soc-border rounded-lg p-3 text-xs space-y-1">
