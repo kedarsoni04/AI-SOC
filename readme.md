@@ -8,6 +8,27 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-4169E1?logo=postgresql)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker)](https://www.docker.com/)
 [![AI](https://img.shields.io/badge/AI-LLM%20Assisted-purple)](#-ai-powered-investigation)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-black?logo=vercel)](https://ai-soc.vercel.app)
+
+## 🌐 Live Demo
+
+| Service | URL |
+|---|---|
+| 🖥️ Frontend (Vercel) | **[ai-soc.vercel.app](https://ai-soc-eta.vercel.app)** *(update with your Vercel URL)* |
+| ⚙️ Backend API (Render) | **[ai-soc-backend.onrender.com](https://ai-soc-ts2l.onrender.com/docs)** *(update with your Render URL)* |
+
+> **Default credentials**: `admin` / `Admin@123`
+> 
+> ⚠️ *The backend is hosted on Render's free tier and may take 30–50 seconds to wake up on first visit.*
+
+
+---
+
+## 📸 Dashboard Preview
+
+![AI-SOC Dashboard](docs/images/dashboard_preview.png)
+
+*Real-time SOC dashboard with live event monitoring, attack simulation engine, incident tracking, and threat analytics.*
 
 ---
 
@@ -585,24 +606,26 @@ The dashboard provides an overview of the security environment.
 
 # 🧰 Technology Stack
 
-| Layer              | Technology              |
-| ------------------ | ----------------------- |
-| Frontend           | React, TypeScript, Vite |
-| Styling            | Tailwind CSS            |
-| Charts             | Recharts                |
-| Icons              | Lucide React            |
-| Backend            | Python, FastAPI         |
-| Database           | PostgreSQL              |
-| ORM                | SQLAlchemy              |
-| Migrations         | Alembic                 |
-| Authentication     | JWT                     |
-| Machine Learning   | Scikit-learn            |
-| AI                 | LLM API                 |
-| Real-Time          | WebSockets              |
-| Containers         | Docker                  |
-| CI/CD              | GitHub Actions          |
-| Cloud              | AWS                     |
-| Security Framework | MITRE ATT&CK            |
+| Layer              | Technology                        |
+| ------------------ | --------------------------------- |
+| Frontend           | React 19, TypeScript, Vite        |
+| Styling            | Tailwind CSS                      |
+| Charts             | Recharts                          |
+| Map                | D3-Geo (custom SVG world map)     |
+| Icons              | Lucide React                      |
+| State              | Zustand                           |
+| Backend            | Python 3.11, FastAPI              |
+| Database           | PostgreSQL (Supabase)             |
+| ORM                | SQLAlchemy (async)                |
+| DB Driver          | asyncpg                           |
+| Authentication     | JWT (python-jose)                 |
+| Machine Learning   | Scikit-learn, XGBoost             |
+| AI                 | Google Gemini API                 |
+| Real-Time          | WebSockets                        |
+| Containers         | Docker + Docker Compose           |
+| Frontend Hosting   | Vercel                            |
+| Backend Hosting    | Render                            |
+| Security Framework | MITRE ATT&CK                      |
 
 ---
 
@@ -923,32 +946,34 @@ Audit Log
 
 # ☁️ Deployment
 
-The application is designed to support cloud deployment using AWS.
+This project is deployed using managed cloud services:
 
-Possible architecture:
+| Service | Provider | Purpose |
+|---|---|---|
+| Frontend | [Vercel](https://vercel.com) | React/Vite static hosting with CDN |
+| Backend API | [Render](https://render.com) | Docker-based FastAPI container |
+| Database | [Supabase](https://supabase.com) | Managed PostgreSQL (free tier) |
+
+### Deploy Your Own Instance
+
+1. **Database**: Create a free project on [Supabase](https://supabase.com) and grab the **Session Pooler** connection string.
+2. **Backend**: Create a new Web Service on [Render](https://render.com), connect your GitHub repo, set Root Directory to `backend`, and add environment variables:
+   - `DATABASE_URL` → Supabase connection string
+   - `SECRET_KEY` → any long random string
+   - `ENVIRONMENT` → `production`
+3. **Frontend**: Import your repo into [Vercel](https://vercel.com), set Root Directory to `frontend`, and add:
+   - `VITE_API_BASE_URL` → `https://<your-render-url>/api/v1`
+   - `VITE_WS_URL` → `wss://<your-render-url>/api/v1/ws`
 
 ```text
-                    AWS
-                     │
-          ┌──────────┴──────────┐
-          ↓                     ↓
-      Frontend               Backend
-       Hosting              Container
-          │                     │
-          │                  FastAPI
-          │                     │
-          └──────────┬──────────┘
-                     ↓
-                PostgreSQL
-                     │
-                     ↓
-              Detection / ML
-                     │
-                     ↓
-                  AI API
+         Vercel (Frontend)
+               │
+           REST / WSS
+               │
+        Render (Backend)
+               │
+       Supabase (PostgreSQL)
 ```
-
-Docker and GitHub Actions can be used to automate builds and deployments.
 
 ---
 
