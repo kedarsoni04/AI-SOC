@@ -21,10 +21,12 @@ class Settings(BaseSettings):
     @field_validator("database_url", mode="before")
     @classmethod
     def fix_postgres_url(cls, v):
-        if isinstance(v, str) and v.startswith("postgres://"):
-            return v.replace("postgres://", "postgresql+asyncpg://", 1)
-        if isinstance(v, str) and v.startswith("postgresql://"):
-            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        if isinstance(v, str):
+            v = v.strip()  # Remove any trailing newlines/spaces from pasting
+            if v.startswith("postgres://"):
+                return v.replace("postgres://", "postgresql+asyncpg://", 1)
+            if v.startswith("postgresql://"):
+                return v.replace("postgresql://", "postgresql+asyncpg://", 1)
         return v
     
     # ── Security ───────────────────────────────────────────
