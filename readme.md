@@ -26,7 +26,7 @@
 
 ## 📸 Dashboard Preview
 
-![AI-SOC Dashboard](docs/images/dashboard_preview.png)
+![AI-SOC Dashboard](docs/dashboard_preview.png)
 
 *Real-time SOC dashboard with live event monitoring, attack simulation engine, incident tracking, and threat analytics.*
 
